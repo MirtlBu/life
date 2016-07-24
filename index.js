@@ -4,57 +4,60 @@ var canvas = document.getElementsByTagName('canvas')[0];
 var ctx = canvas.getContext('2d');
 var SIZE = 90;
 var width;
-var life = (function() {
-  var arr = [];
+var life = newLife(true);
+var extraLife = newLife();
+
+function newLife(rand) {
+  var arr = new Array(SIZE);
   for (var i = 0; i < SIZE; i++) {
-    var line = [];
+    var line = new Array(SIZE);
     for (var j = 0; j < SIZE; j++) {
-      line.push(Math.random() < .3);
+      line[j] = rand && (Math.random() < .2);
     }
-    arr.push(line);
+    arr[i] = line;
   }
   return arr;
-})();
+};
 
 window.addEventListener('resize', onResize);
 onResize();
-
 
 function onResize() {
   width = Math.min(window.innerHeight, window.innerWidth);
   canvas.height = width;
   canvas.width = width;
+  drawGeneration();
 }
 
-function draw() {
+function drawCell(i, j, isLive) {
+  var x1 = Math.floor(j * width / SIZE);
+  var y1 = Math.floor(i * width / SIZE);
+  var x2 = Math.floor((j + 1) * width / SIZE) - 1;
+  var y2 = Math.floor((i + 1) * width / SIZE) - 1;
+  ctx.fillStyle = isLive ? '#98be63' : '#2d2d2d';
+  ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+}
+
+function drawGeneration() {
   for (var i = 0; i < SIZE; i++) {
-    var line = life[i];
     for (var j = 0; j < SIZE; j++) {
-      ctx.fillStyle = line[j] ? '#98be63' : '#2d2d2d';
-      ctx.fillRect(
-        Math.floor(j * width / SIZE), Math.floor(i * width / SIZE),
-        Math.floor(width / SIZE), Math.floor(width / SIZE));
+      drawCell(i, j, life[i][j]);
     }
   }
 }
 
-function evolve() {
-  var nextLife = [];
+function liveGeneration() {
   for (var i = 0; i < SIZE; i++) {
     var line = life[i];
-    var nextLine = [];
+    var extraLine = extraLife[i];
     for (var j = 0; j < SIZE; j++) {
-      var isLive = line[j];
       var neightbors = countNeighbors(i, j);
-      if (isLive) {
-        nextLine.push(neightbors === 2 || neightbors === 3);
-      } else {
-        nextLine.push(neightbors === 3);
+      extraLine[j] = neightbors === 3 || (line[j] && neightbors === 2);
+      if (line[j] !== extraLine[j]) {
+        drawCell(i, j, extraLine[j]);
       }
     }
-    nextLife.push(nextLine);
   }
-  life = nextLife;
 
   function countNeighbors(i, j) {
     var neighbors = 0;
@@ -66,12 +69,25 @@ function evolve() {
     }
     return neighbors;
   }
+
+  var _ = extraLife;
+  extraLife = life;
+  life = _;
 }
 
-draw();
-setInterval(function() {
-  evolve();
-  draw();
-}, 100)
+var prev;
+requestAnimationFrame(function(time) {
+  prev = time;
+  requestAnimationFrame(draw);
+});
+
+function draw(time) {
+  var progress = time - prev;
+  if (progress > 100) {
+    prev = time - progress % 100;
+    liveGeneration();
+  }
+  requestAnimationFrame(draw);
+}
 
 })();
